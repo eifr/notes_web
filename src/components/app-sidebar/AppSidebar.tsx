@@ -1,5 +1,6 @@
-import { Calendar, Home, Inbox, NotebookIcon } from "lucide-react";
-
+import { NotebookIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import {
   Sidebar,
   SidebarContent,
@@ -10,49 +11,68 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Link, linkOptions } from "@tanstack/react-router";
-
-// Menu items.
-const items = linkOptions([
-  {
-    title: "Home",
-    to: "/",
-    icon: Home,
-  },
-  {
-    title: "Inbox",
-    to: "/inbox",
-    icon: Inbox,
-  },
-  {
-    title: "Calendar",
-    to: "/calendar",
-    icon: Calendar,
-  },
-  {
-    title: "Note",
-    to: "/notes/$noteId",
-    params: { noteId: "1" },
-    icon: NotebookIcon,
-  },
-]);
+import { Link, useParams } from "@tanstack/react-router";
 
 export function AppSidebar() {
+  const [notebooks, setNotebooks] = useState<any[] | null>(null);
+
+  const { workspaceId } = useParams({ strict: false });
+
+  useEffect(() => {
+    if (!workspaceId) return;
+
+    const fetchNotebooks = async () => {
+      const { data } = await supabase
+        .from("notebooks")
+        .select(
+          `
+          id,
+          name,
+          notes (
+            id,
+            title
+          )
+        `
+        )
+        .eq("workspace_id", workspaceId);
+      setNotebooks(data);
+    };
+
+    fetchNotebooks();
+  }, [workspaceId]);
+  if (!workspaceId) return null;
   return (
-    <Sidebar>
+    <Sidebar variant="inset">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Notebook</SidebarGroupLabel>
+          <SidebarGroupLabel>Notebooks</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
+              {notebooks?.map((notebook) => (
+                <SidebarMenuItem key={notebook.id}>
                   <SidebarMenuButton asChild>
-                    <Link {...item}>
-                      <item.icon />
-                      <span>{item.title}</span>
+                    <Link
+                      to="/$workspaceId/notebook/$notebookId"
+                      params={{ notebookId: notebook.id, workspaceId }}
+                    >
+                      <NotebookIcon />
+                      <span>{notebook.name}</span>
                     </Link>
                   </SidebarMenuButton>
+                  <SidebarMenu>
+                    {notebook.notes.map((note: any) => (
+                      <SidebarMenuItem key={note.id}>
+                        <SidebarMenuButton asChild>
+                          <Link
+                            to="/$workspaceId/notes/$noteId"
+                            params={{ noteId: note.id, workspaceId }}
+                          >
+                            <span>{note.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

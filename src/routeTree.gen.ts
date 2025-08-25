@@ -9,82 +9,82 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as InboxRouteImport } from './routes/inbox'
-import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
+import { Route as WorkspaceIdIndexRouteImport } from './routes/$workspaceId/index'
+import { Route as WorkspaceIdNotesNoteIdRouteImport } from './routes/$workspaceId/notes.$noteId'
+import { Route as WorkspaceIdNotebookNotebookIdRouteImport } from './routes/$workspaceId/notebook.$notebookId'
 
-const InboxRoute = InboxRouteImport.update({
-  id: '/inbox',
-  path: '/inbox',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalendarRoute = CalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
-  id: '/notes/$noteId',
-  path: '/notes/$noteId',
+const WorkspaceIdIndexRoute = WorkspaceIdIndexRouteImport.update({
+  id: '/$workspaceId/',
+  path: '/$workspaceId/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkspaceIdNotesNoteIdRoute = WorkspaceIdNotesNoteIdRouteImport.update({
+  id: '/$workspaceId/notes/$noteId',
+  path: '/$workspaceId/notes/$noteId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceIdNotebookNotebookIdRoute =
+  WorkspaceIdNotebookNotebookIdRouteImport.update({
+    id: '/$workspaceId/notebook/$notebookId',
+    path: '/$workspaceId/notebook/$notebookId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/calendar': typeof CalendarRoute
-  '/inbox': typeof InboxRoute
-  '/notes/$noteId': typeof NotesNoteIdRoute
+  '/$workspaceId': typeof WorkspaceIdIndexRoute
+  '/$workspaceId/notebook/$notebookId': typeof WorkspaceIdNotebookNotebookIdRoute
+  '/$workspaceId/notes/$noteId': typeof WorkspaceIdNotesNoteIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/calendar': typeof CalendarRoute
-  '/inbox': typeof InboxRoute
-  '/notes/$noteId': typeof NotesNoteIdRoute
+  '/$workspaceId': typeof WorkspaceIdIndexRoute
+  '/$workspaceId/notebook/$notebookId': typeof WorkspaceIdNotebookNotebookIdRoute
+  '/$workspaceId/notes/$noteId': typeof WorkspaceIdNotesNoteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/calendar': typeof CalendarRoute
-  '/inbox': typeof InboxRoute
-  '/notes/$noteId': typeof NotesNoteIdRoute
+  '/$workspaceId/': typeof WorkspaceIdIndexRoute
+  '/$workspaceId/notebook/$notebookId': typeof WorkspaceIdNotebookNotebookIdRoute
+  '/$workspaceId/notes/$noteId': typeof WorkspaceIdNotesNoteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/calendar' | '/inbox' | '/notes/$noteId'
+  fullPaths:
+    | '/'
+    | '/$workspaceId'
+    | '/$workspaceId/notebook/$notebookId'
+    | '/$workspaceId/notes/$noteId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calendar' | '/inbox' | '/notes/$noteId'
-  id: '__root__' | '/' | '/calendar' | '/inbox' | '/notes/$noteId'
+  to:
+    | '/'
+    | '/$workspaceId'
+    | '/$workspaceId/notebook/$notebookId'
+    | '/$workspaceId/notes/$noteId'
+  id:
+    | '__root__'
+    | '/'
+    | '/$workspaceId/'
+    | '/$workspaceId/notebook/$notebookId'
+    | '/$workspaceId/notes/$noteId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CalendarRoute: typeof CalendarRoute
-  InboxRoute: typeof InboxRoute
-  NotesNoteIdRoute: typeof NotesNoteIdRoute
+  WorkspaceIdIndexRoute: typeof WorkspaceIdIndexRoute
+  WorkspaceIdNotebookNotebookIdRoute: typeof WorkspaceIdNotebookNotebookIdRoute
+  WorkspaceIdNotesNoteIdRoute: typeof WorkspaceIdNotesNoteIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/inbox': {
-      id: '/inbox'
-      path: '/inbox'
-      fullPath: '/inbox'
-      preLoaderRoute: typeof InboxRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -92,11 +92,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/notes/$noteId': {
-      id: '/notes/$noteId'
-      path: '/notes/$noteId'
-      fullPath: '/notes/$noteId'
-      preLoaderRoute: typeof NotesNoteIdRouteImport
+    '/$workspaceId/': {
+      id: '/$workspaceId/'
+      path: '/$workspaceId'
+      fullPath: '/$workspaceId'
+      preLoaderRoute: typeof WorkspaceIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$workspaceId/notes/$noteId': {
+      id: '/$workspaceId/notes/$noteId'
+      path: '/$workspaceId/notes/$noteId'
+      fullPath: '/$workspaceId/notes/$noteId'
+      preLoaderRoute: typeof WorkspaceIdNotesNoteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$workspaceId/notebook/$notebookId': {
+      id: '/$workspaceId/notebook/$notebookId'
+      path: '/$workspaceId/notebook/$notebookId'
+      fullPath: '/$workspaceId/notebook/$notebookId'
+      preLoaderRoute: typeof WorkspaceIdNotebookNotebookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -104,9 +118,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CalendarRoute: CalendarRoute,
-  InboxRoute: InboxRoute,
-  NotesNoteIdRoute: NotesNoteIdRoute,
+  WorkspaceIdIndexRoute: WorkspaceIdIndexRoute,
+  WorkspaceIdNotebookNotebookIdRoute: WorkspaceIdNotebookNotebookIdRoute,
+  WorkspaceIdNotesNoteIdRoute: WorkspaceIdNotesNoteIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
