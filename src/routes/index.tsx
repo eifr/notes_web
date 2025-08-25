@@ -20,7 +20,7 @@ export function Home() {
       if (error) {
         console.error("Error creating workspace:", error);
       } else if (data) {
-        navigate({ to: `/workspace/${data.id}` });
+        navigate({ to: `/${data.id}` });
       }
     };
 
