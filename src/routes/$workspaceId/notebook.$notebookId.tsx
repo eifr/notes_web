@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Header } from "@/components/Header";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Divide } from "lucide-react";
 
 export const Route = createFileRoute("/$workspaceId/notebook/$notebookId")({
   component: Notebook,
@@ -9,137 +13,137 @@ export const Route = createFileRoute("/$workspaceId/notebook/$notebookId")({
 
 function Notebook() {
   const { notebookId, workspaceId } = Route.useParams();
-  const [notes, setNotes] = useState<any[]>([]);
-  const [notebookName, setNotebookName] = useState("");
   const [newNoteTitle, setNewNoteTitle] = useState("");
+  const queryClient = useQueryClient();
 
-  const fetchNotes = async () => {
-    const { data: notesData, error: notesError } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("notebook_id", notebookId);
-
-    if (notesError) {
-      console.error("Error fetching notes:", notesError);
-    } else {
-      setNotes(notesData);
-    }
-  };
-
-  useEffect(() => {
-    const fetchNotebookDetails = async () => {
-      const { data: notebookData, error: notebookError } = await supabase
+  const { data: notebook } = useQuery({
+    queryKey: ["notebook", notebookId],
+    queryFn: async () => {
+      const { data } = await supabase
         .from("notebooks")
         .select("name, notes (id, title)")
         .eq("id", notebookId)
         .single();
+      return data;
+    },
+  });
 
-      if (notebookError) {
-        console.error("Error fetching notebook name:", notebookError);
-      } else {
-        setNotebookName(notebookData.name);
-        setNotes(notebookData.notes);
-      }
-    };
-
-    fetchNotebookDetails();
-  }, [notebookId]);
-
-  const handleCreateNote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNoteTitle.trim()) return;
-
-    const { error } = await supabase
-      .from("notes")
-      .insert({ title: newNoteTitle, notebook_id: notebookId });
-
-    if (error) {
-      console.error("Error creating note:", error);
-    } else {
+  const { mutate: createNote } = useMutation({
+    mutationFn: async (title: string) => {
+      return supabase.from("notes").insert({ title, notebook_id: notebookId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["notebook", notebookId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notebooks", workspaceId],
+      });
       setNewNoteTitle("");
-      fetchNotes();
+    },
+  });
+
+  const handleCreateNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    let noteTitle = newNoteTitle.trim();
+    if (!noteTitle) {
+      noteTitle = new Date().toLocaleString();
     }
+    createNote(noteTitle);
   };
 
-  const handleDeleteNote = async (noteId: string) => {
-    const { error } = await supabase.from("notes").delete().eq("id", noteId);
-
-    if (error) {
-      console.error("Error deleting note:", error);
-    } else {
-      fetchNotes();
-    }
-  };
+  const { mutate: deleteNote } = useMutation({
+    mutationFn: async (noteId: string) => {
+      return supabase.from("notes").delete().eq("id", noteId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["notebook", notebookId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notebooks", workspaceId],
+      });
+    },
+  });
 
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteTitle, setEditingNoteTitle] = useState("");
 
-  const handleUpdateNote = async (noteId: string) => {
-    if (!editingNoteTitle.trim()) return;
-
-    const { error } = await supabase
-      .from("notes")
-      .update({ title: editingNoteTitle })
-      .eq("id", noteId);
-
-    if (error) {
-      console.error("Error updating note:", error);
-    } else {
+  const { mutate: updateNote } = useMutation({
+    mutationFn: async (noteId: string) => {
+      return supabase
+        .from("notes")
+        .update({ title: editingNoteTitle })
+        .eq("id", noteId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["notebook", notebookId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notebooks", workspaceId],
+      });
       setEditingNoteId(null);
       setEditingNoteTitle("");
-      fetchNotes();
-    }
-  };
+    },
+  });
 
   return (
     <>
-      <Header title={`Notebook: ${notebookName}`} />
+      <Header title={`Notebook: ${notebook?.name}`} />
       <div className="p-2">
         <form onSubmit={handleCreateNote}>
-          <input
+          <Input
             type="text"
             value={newNoteTitle}
             onChange={(e) => setNewNoteTitle(e.target.value)}
             placeholder="New note title"
           />
-          <button type="submit">Create Note</button>
+          <Button type="submit">Create Note</Button>
         </form>
         <h2>Notes</h2>
         <ul>
-          {notes.map((note) => (
+          {notebook?.notes.map((note: any) => (
             <li key={note.id}>
               {editingNoteId === note.id ? (
                 <>
-                  <input
+                  <Input
                     type="text"
                     value={editingNoteTitle}
                     onChange={(e) => setEditingNoteTitle(e.target.value)}
                   />
-                  <button onClick={() => handleUpdateNote(note.id)}>
-                    Save
-                  </button>
-                  <button onClick={() => setEditingNoteId(null)}>Cancel</button>
+                  <Button onClick={() => updateNote(note.id)}>Save</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setEditingNoteId(null)}
+                  >
+                    Cancel
+                  </Button>
                 </>
               ) : (
-                <>
+                <div className="space-x-3">
                   <Link
                     to={`/$workspaceId/notes/$noteId`}
                     params={{ noteId: note.id, workspaceId }}
                   >
                     {note.title}
                   </Link>
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setEditingNoteId(note.id);
                       setEditingNoteTitle(note.title);
                     }}
                   >
                     Edit
-                  </button>
-                  <button onClick={() => handleDeleteNote(note.id)}>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => deleteNote(note.id)}
+                  >
                     Delete
-                  </button>
-                </>
+                  </Button>
+                </div>
               )}
             </li>
           ))}

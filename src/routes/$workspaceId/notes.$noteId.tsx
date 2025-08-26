@@ -5,34 +5,38 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { MDXEditorMethods } from "@mdxeditor/editor";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/$workspaceId/notes/$noteId")({
   component: Note,
 });
 
 export function Note() {
-  const { noteId } = Route.useParams();
-  const [note, setNote] = useState<any>(null);
+  const { noteId, workspaceId } = Route.useParams();
   const [markdown, setMarkdown] = useState<string>("");
   const mdxEditorRef = useRef<MDXEditorMethods>(null);
-  useEffect(() => {
-    const fetchNote = async () => {
-      const { data, error } = await supabase
+  const queryClient = useQueryClient();
+
+  const { data: note } = useQuery({
+    queryKey: ["note", noteId],
+    queryFn: async () => {
+      const { data } = await supabase
         .from("notes")
         .select("*")
         .eq("id", noteId)
         .single();
+      return data;
+    },
+    enabled: !!noteId,
+  });
 
-      if (error) {
-        console.error("Error fetching note:", error);
-      } else {
-        setNote(data);
-        setMarkdown(data.content || "");
-      }
-    };
+  useEffect(() => {
+    if (note) {
+      setMarkdown(note.content || "");
+    }
+  }, [note]);
 
-    fetchNote();
-
+  useEffect(() => {
     const channel = supabase
       .channel(`notes:${noteId}`)
       .on(
@@ -54,26 +58,24 @@ export function Note() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [noteId]);
+  }, [noteId, markdown]);
 
   const debouncedMarkdown = useDebounce(markdown, 500);
 
+  const { mutate: saveNote } = useMutation({
+    mutationFn: async (content: string) => {
+      return supabase.from("notes").update({ content }).eq("id", noteId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notebooks", workspaceId] });
+    },
+  });
+
   useEffect(() => {
-    const saveNote = async () => {
-      if (note && debouncedMarkdown !== note.content) {
-        const { error } = await supabase
-          .from("notes")
-          .update({ content: debouncedMarkdown })
-          .eq("id", noteId);
-
-        if (error) {
-          console.error("Error saving note:", error);
-        }
-      }
-    };
-
-    saveNote();
-  }, [debouncedMarkdown, noteId, note]);
+    if (note && debouncedMarkdown !== note.content) {
+      saveNote(debouncedMarkdown);
+    }
+  }, [debouncedMarkdown, note, saveNote]);
 
   if (!note) {
     return <div>Loading...</div>;

@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Header } from "@/components/Header";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/$workspaceId/")({
   component: Workspace,
@@ -9,144 +12,140 @@ export const Route = createFileRoute("/$workspaceId/")({
 
 function Workspace() {
   const { workspaceId } = Route.useParams();
-  const [notebooks, setNotebooks] = useState<any[]>([]);
-  const [workspaceName, setWorkspaceName] = useState("");
   const [newNotebookName, setNewNotebookName] = useState("");
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchWorkspaceDetails = async () => {
-      const { data: workspaceData, error: workspaceError } = await supabase
+  const { data: workspace } = useQuery({
+    queryKey: ["workspace", workspaceId],
+    queryFn: async () => {
+      const { data } = await supabase
         .from("workspaces")
         .select("name, notebooks (id, name)")
         .eq("id", workspaceId)
         .single();
+      return data;
+    },
+  });
 
-      if (workspaceError) {
-        console.error("Error fetching workspace name:", workspaceError);
-      } else {
-        setWorkspaceName(workspaceData.name);
-        setNotebooks(workspaceData.notebooks);
-      }
-    };
+  const { mutate: createNotebook } = useMutation({
+    mutationFn: async (name: string) => {
+      return supabase
+        .from("notebooks")
+        .insert({ name, workspace_id: workspaceId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["workspace", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notebooks", workspaceId],
+      });
+      setNewNotebookName("");
+    },
+  });
 
-    fetchWorkspaceDetails();
-  }, [workspaceId]);
-
-  const fetchNotebooks = async () => {
-    const { data: notebooksData, error: notebooksError } = await supabase
-      .from("notebooks")
-      .select("*")
-      .eq("workspace_id", workspaceId);
-
-    if (notebooksError) {
-      console.error("Error fetching notebooks:", notebooksError);
-    } else {
-      setNotebooks(notebooksData);
-    }
-  };
-
-  const handleCreateNotebook = async (e: React.FormEvent) => {
+  const handleCreateNotebook = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNotebookName.trim()) return;
-
-    const { error } = await supabase
-      .from("notebooks")
-      .insert({ name: newNotebookName, workspace_id: workspaceId });
-
-    if (error) {
-      console.error("Error creating notebook:", error);
-    } else {
-      setNewNotebookName("");
-      fetchNotebooks();
-    }
+    createNotebook(newNotebookName);
   };
 
-  const handleDeleteNotebook = async (notebookId: string) => {
-    const { error } = await supabase
-      .from("notebooks")
-      .delete()
-      .eq("id", notebookId);
-
-    if (error) {
-      console.error("Error deleting notebook:", error);
-    } else {
-      fetchNotebooks();
-    }
-  };
+  const { mutate: deleteNotebook } = useMutation({
+    mutationFn: async (notebookId: string) => {
+      return supabase.from("notebooks").delete().eq("id", notebookId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["workspace", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notebooks", workspaceId],
+      });
+    },
+  });
 
   const [editingNotebookId, setEditingNotebookId] = useState<string | null>(
     null
   );
   const [editingNotebookName, setEditingNotebookName] = useState("");
 
-  const handleUpdateNotebook = async (notebookId: string) => {
-    if (!editingNotebookName.trim()) return;
-
-    const { error } = await supabase
-      .from("notebooks")
-      .update({ name: editingNotebookName })
-      .eq("id", notebookId);
-
-    if (error) {
-      console.error("Error updating notebook:", error);
-    } else {
+  const { mutate: updateNotebook } = useMutation({
+    mutationFn: async (notebookId: string) => {
+      return supabase
+        .from("notebooks")
+        .update({ name: editingNotebookName })
+        .eq("id", notebookId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["workspace", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["notebooks", workspaceId],
+      });
       setEditingNotebookId(null);
       setEditingNotebookName("");
-      fetchNotebooks();
-    }
-  };
+    },
+  });
 
   return (
     <>
-      <Header title={`Workspace: ${workspaceName}`} />
+      <Header title={`Workspace: ${workspace?.name}`} />
       <div className="p-2">
         <form onSubmit={handleCreateNotebook}>
-          <input
+          <Input
             type="text"
             value={newNotebookName}
             onChange={(e) => setNewNotebookName(e.target.value)}
             placeholder="New notebook name"
           />
-          <button type="submit">Create Notebook</button>
+          <Button type="submit">Create Notebook</Button>
         </form>
         <h2>Notebooks</h2>
         <ul>
-          {notebooks.map((notebook) => (
+          {workspace?.notebooks.map((notebook: any) => (
             <li key={notebook.id}>
               {editingNotebookId === notebook.id ? (
                 <>
-                  <input
+                  <Input
                     type="text"
                     value={editingNotebookName}
                     onChange={(e) => setEditingNotebookName(e.target.value)}
                   />
-                  <button onClick={() => handleUpdateNotebook(notebook.id)}>
+                  <Button onClick={() => updateNotebook(notebook.id)}>
                     Save
-                  </button>
-                  <button onClick={() => setEditingNotebookId(null)}>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setEditingNotebookId(null)}
+                  >
                     Cancel
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <>
+                <div className="space-x-3">
                   <Link
                     to="/$workspaceId/notebook/$notebookId"
                     params={{ notebookId: notebook.id, workspaceId }}
                   >
                     {notebook.name}
                   </Link>
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setEditingNotebookId(notebook.id);
                       setEditingNotebookName(notebook.name);
                     }}
                   >
                     Edit
-                  </button>
-                  <button onClick={() => handleDeleteNotebook(notebook.id)}>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => deleteNotebook(notebook.id)}
+                  >
                     Delete
-                  </button>
-                </>
+                  </Button>
+                </div>
               )}
             </li>
           ))}
