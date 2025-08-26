@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Home, Paperclip, SidebarIcon, StickyNote } from "lucide-react";
+import { Home, StickyNote } from "lucide-react";
 
 export function AppSidebar() {
   const { workspaceId } = useParams({ strict: false });
